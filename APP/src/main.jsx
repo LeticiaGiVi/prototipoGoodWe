@@ -7,28 +7,25 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import PageNotFound from './pages/PageNotFound.jsx'
 import Homepage from './pages/Home.jsx'
 import Dispositivos from './pages/dispositivos.jsx'
-import Detalhesispositivos from './pages/DetalhesDispositivos.jsx'
+import DetalhesDispositivos from './pages/DetalhesDispositivos.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 
-const router = createBrowserRouter(
-  [
-    {
-      path: "/",
-      element: <App/>,
-      children:[
-        {index: true, element: <Homepage/>},
-        {path: "disp", element: <Dispositivos/>},
-        {path: "disp/:id", element: <Detalhesispositivos/>},
-        { path: "canfig", element: <Configuracoes/>},
-        { path: "*", element: <PageNotFound/>}
-      ]
-    }
-  ]
-)
-
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <App />,
+    children: [
+      { index: true, element: <Homepage /> },
+      { path: "dispositivos", element: <Dispositivos /> },
+      { path: "dispositivos/:id", element: <DetalhesDispositivos /> },
+      { path: "configuracoes", element: <Configuracoes /> },
+      { path: "*", element: <PageNotFound /> }
+    ]
+  }
+])
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <RouterProvider router={router}/>
+    <RouterProvider router={router} />
   </React.StrictMode>,
 )
