@@ -23,7 +23,7 @@ function SideBar() {
   
   return (
     <div className="bg-white border-r border-gray-200 flex flex-col h-screen items-start justify-start p-4">
-      <h2 className="text-gray-900 text-xl font-bold mb-8 text-center w-full">GoodWe</h2>
+      <h2 className="text-gray-900 text-xl font-bold mb-8 text-center w-full">Watt Wise</h2>
       <nav className="w-full">
         {items.map((item) => (
           <div key={item.title} className="mb-2">

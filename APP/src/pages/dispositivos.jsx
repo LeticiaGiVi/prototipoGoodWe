@@ -20,15 +20,19 @@ export default function Dispositivos() {
       
       const result = await response.json();
       
+      console.log('📊 Dados recebidos da API:', result);
+      console.log('📦 Primeiro registro:', result.data?.[0]);
+      
       if (result.success && result.data && result.data.length > 0) {
         const lastRecord = result.data[result.data.length - 1];
+        console.log('✅ Último registro:', lastRecord);
         setData(lastRecord);
       } else {
         throw new Error('Nenhum dado encontrado');
       }
     } catch (err) {
       setError(err.message);
-      console.error('Erro ao buscar dados:', err);
+      console.error('❌ Erro ao buscar dados:', err);
     } finally {
       setLoading(false);
     }
@@ -72,7 +76,7 @@ export default function Dispositivos() {
       
       <div className="text-center mb-4">
         <div className="text-3xl font-bold text-gray-900 mb-1">
-          {consumption !== undefined ? consumption.toFixed(2) : 'N/A'}
+          {consumption !== undefined && consumption !== null ? consumption.toFixed(2) : 'N/A'}
         </div>
         <div className="text-sm text-gray-600">Watts-hora (Wh)</div>
       </div>
@@ -133,10 +137,11 @@ export default function Dispositivos() {
     );
   }
 
+  // Nomes corretos das colunas (com S maiúsculo)
   const totalConsumption = (
-    (data?.sub_metering_1 || 0) + 
-    (data?.sub_metering_2 || 0) + 
-    (data?.sub_metering_3 || 0)
+    (data?.Sub_metering_1 || 0) + 
+    (data?.Sub_metering_2 || 0) + 
+    (data?.Sub_metering_3 || 0)
   );
 
   const activeDevices = [data?.Sub1_on, data?.Sub2_on, data?.Sub3_on].filter(Boolean).length;
@@ -178,12 +183,13 @@ export default function Dispositivos() {
           <div className="flex items-center space-x-4 text-gray-700">
             <span className="font-medium">Última atualização:</span>
             <span className="font-mono text-gray-900 bg-gray-100 px-3 py-1 rounded border">
-              {data?._time ? new Date(data._time).toLocaleString('pt-BR') : 'N/A'}
+              {data?.time ? new Date(data.time).toLocaleString('pt-BR') : 
+               data?._time ? new Date(data._time).toLocaleString('pt-BR') : 'N/A'}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-green-600 text-lg">●</span>
-            <span className="text-gray-600">Atualização automática</span>
+            <span className="text-gray-600">Atualização automática a cada 30s</span>
           </div>
         </div>
       </div>
@@ -219,17 +225,17 @@ export default function Dispositivos() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <DeviceCard 
           deviceNum={1}
-          consumption={data?.sub_metering_1}
+          consumption={data?.Sub_metering_1}
           isOn={data?.Sub1_on}
         />
         <DeviceCard 
           deviceNum={2}
-          consumption={data?.sub_metering_2}
+          consumption={data?.Sub_metering_2}
           isOn={data?.Sub2_on}
         />
         <DeviceCard 
           deviceNum={3}
-          consumption={data?.sub_metering_3}
+          consumption={data?.Sub_metering_3}
           isOn={data?.Sub3_on}
         />
       </div>
@@ -271,6 +277,18 @@ export default function Dispositivos() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Debug Info */}
+      <div className="mt-6 bg-gray-800 text-white rounded-lg p-4 text-xs font-mono">
+        <div className="font-bold mb-2">🔍 Debug Info:</div>
+        <div>Campos disponíveis: {data ? Object.keys(data).join(', ') : 'Nenhum'}</div>
+        <div className="mt-2">Sub_metering_1: {data?.Sub_metering_1 ?? 'undefined'}</div>
+        <div>Sub_metering_2: {data?.Sub_metering_2 ?? 'undefined'}</div>
+        <div>Sub_metering_3: {data?.Sub_metering_3 ?? 'undefined'}</div>
+        <div className="mt-2">Sub1_on: {String(data?.Sub1_on ?? 'undefined')}</div>
+        <div>Sub2_on: {String(data?.Sub2_on ?? 'undefined')}</div>
+        <div>Sub3_on: {String(data?.Sub3_on ?? 'undefined')}</div>
       </div>
     </div>
   );

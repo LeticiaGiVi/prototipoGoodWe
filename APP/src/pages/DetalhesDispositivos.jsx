@@ -22,6 +22,8 @@ export default function DetalhesDispositivos() {
         setLoading(true);
         setError(null);
         
+        console.log(`📊 Buscando dados para dispositivo ${id}...`);
+        
         const response = await fetch(`http://localhost:3001/api/measurement/fields/Ecalc_Wh?days=${selectedDays}`);
         
         if (!response.ok) {
@@ -30,31 +32,57 @@ export default function DetalhesDispositivos() {
         
         const result = await response.json();
         
+        console.log('✅ Dados recebidos:', result);
+        console.log('📦 Primeiro registro:', result.data?.[0]);
+        
         if (result.success && result.data && result.data.length > 0) {
-          const fieldName = `sub_metering_${id}`;
+          // Nomes corretos das colunas (com S maiúsculo)
+          const fieldName = `Sub_metering_${id}`;
           const statusField = `Sub${id}_on`;
           
-          const processedData = result.data.map(item => ({
-            time: new Date(item._time).toLocaleString('pt-BR', {
-              day: '2-digit',
-              month: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            }),
-            hour: new Date(item._time).getHours(),
-            consumption: item[fieldName] || 0,
-            usingSolar: item[statusField] || false,
-            timestamp: new Date(item._time).getTime()
-          }));
+          console.log(`🔍 Procurando campos: ${fieldName} e ${statusField}`);
+          
+          const processedData = result.data
+            .filter(item => {
+              const hasField = item[fieldName] !== undefined && item[fieldName] !== null;
+              if (!hasField) {
+                console.log('⚠️ Registro sem campo:', item);
+              }
+              return hasField;
+            })
+            .map(item => {
+              const consumption = parseFloat(item[fieldName]) || 0;
+              const usingSolar = Boolean(item[statusField]);
+              
+              return {
+                time: new Date(item.time || item._time).toLocaleString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }),
+                hour: new Date(item.time || item._time).getHours(),
+                consumption: consumption,
+                usingSolar: usingSolar,
+                timestamp: new Date(item.time || item._time).getTime()
+              };
+            });
+          
+          console.log(`✅ ${processedData.length} registros processados`);
+          console.log('📊 Primeiros 3 registros:', processedData.slice(0, 3));
+          
+          if (processedData.length === 0) {
+            throw new Error(`Nenhum dado encontrado para o campo ${fieldName}. Verifique se o dispositivo ${id} existe no dataset.`);
+          }
           
           setData(processedData);
           calculateStats(processedData);
         } else {
-          throw new Error('Nenhum dado encontrado');
+          throw new Error('Nenhum dado retornado pela API');
         }
       } catch (err) {
         setError(err.message);
-        console.error('Erro ao buscar dados:', err);
+        console.error('❌ Erro ao buscar dados:', err);
       } finally {
         setLoading(false);
       }
@@ -115,10 +143,9 @@ export default function DetalhesDispositivos() {
     
     if (maxConsumption === 0) return [];
 
-    const threshold = maxConsumption * 0.7; // 70% do consumo máximo
+    const threshold = maxConsumption * 0.7;
     const peakHours = hourlyData.filter(h => h.consumption >= threshold);
     
-    // Agrupar horas consecutivas
     const periods = [];
     let currentPeriod = null;
     
@@ -149,7 +176,7 @@ export default function DetalhesDispositivos() {
     return periods;
   };
 
-  const StatCard = ({ title, value, unit, icon, color = "gray", subtitle }) => (
+  const StatCard = ({ title, value, unit, icon, color = "text-gray-500", subtitle }) => (
     <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
       <div className="flex items-center justify-between mb-2">
         <div className="text-gray-600 text-sm font-medium">{title}</div>
@@ -168,7 +195,7 @@ export default function DetalhesDispositivos() {
         <div className="min-h-96 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando dados do dispositivo...</p>
+            <p className="mt-4 text-gray-600">Carregando dados do dispositivo {id}...</p>
           </div>
         </div>
       </div>
@@ -178,15 +205,26 @@ export default function DetalhesDispositivos() {
   if (error) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto mt-20">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto mt-20">
           <div className="text-red-600 text-4xl mb-2 text-center">⚠️</div>
           <h3 className="text-red-800 font-semibold mb-2 text-center">Erro ao carregar dados</h3>
           <p className="text-red-600 mb-4 text-center">{error}</p>
+          
+          <div className="bg-white rounded-lg p-4 mb-4 text-sm">
+            <p className="font-semibold mb-2">💡 Dicas de Debug:</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-700">
+              <li>Verifique se o backend está rodando em http://localhost:3001</li>
+              <li>Confirme que o dispositivo {id} existe (IDs válidos: 1, 2, 3)</li>
+              <li>Verifique o console do navegador (F12) para mais detalhes</li>
+              <li>Campos esperados: Sub_metering_{id} e Sub{id}_on</li>
+            </ul>
+          </div>
+          
           <Link
             to="/dispositivos"
             className="block text-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
           >
-            Voltar para Dispositivos
+            ← Voltar para Dispositivos
           </Link>
         </div>
       </div>
@@ -215,6 +253,9 @@ export default function DetalhesDispositivos() {
             <p className="text-gray-600">
               Monitoramento completo de consumo e padrões de uso
             </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Campo: Sub_metering_{id} | Status: Sub{id}_on | {data.length} registros
+            </p>
           </div>
           <select
             value={selectedDays}
@@ -229,29 +270,29 @@ export default function DetalhesDispositivos() {
         </div>
       </div>
 
-      {/* Status Atual */}
-      <div className="mb-6 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">Status Atual:</span>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              currentStatus?.usingSolar 
-                ? 'bg-green-100 text-green-800 border border-green-200' 
-                : 'bg-gray-100 text-gray-800 border border-gray-300'
-            }`}>
-              {currentStatus?.usingSolar ? '🌞 Usando Energia Solar' : '⚡ Usando Rede Elétrica'}
-            </span>
-            <span className="text-sm text-gray-600">
-              Consumo: <strong>{currentStatus?.consumption.toFixed(2)} Wh</strong>
-            </span>
-          </div>
-          <div className="text-sm text-gray-500">
-            Atualizado em: {currentStatus?.time}
+      {currentStatus && (
+        <div className="mb-6 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-gray-700">Status Atual:</span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                currentStatus.usingSolar 
+                  ? 'bg-green-100 text-green-800 border border-green-200' 
+                  : 'bg-gray-100 text-gray-800 border border-gray-300'
+              }`}>
+                {currentStatus.usingSolar ? '🌞 Usando Energia Solar' : '⚡ Usando Rede Elétrica'}
+              </span>
+              <span className="text-sm text-gray-600">
+                Consumo: <strong>{currentStatus.consumption.toFixed(2)} Wh</strong>
+              </span>
+            </div>
+            <div className="text-sm text-gray-500">
+              Atualizado em: {currentStatus.time}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <StatCard
           title="Consumo Total"
@@ -287,7 +328,6 @@ export default function DetalhesDispositivos() {
         />
       </div>
 
-      {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">
@@ -360,7 +400,6 @@ export default function DetalhesDispositivos() {
         </div>
       </div>
 
-      {/* Períodos de Pico */}
       {peakPeriods.length > 0 && (
         <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg shadow-sm p-6 border-2 border-red-200 mb-6">
           <div className="flex items-center mb-4">
@@ -403,41 +442,41 @@ export default function DetalhesDispositivos() {
         </div>
       )}
 
-      {/* Top 5 Horários */}
-      <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900">
-          🏆 Top 5 Horários de Maior Consumo
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {topHours.map((hour, index) => (
-            <div 
-              key={index}
-              className={`p-4 rounded-lg border-2 text-center transition-transform hover:scale-105 ${
-                index === 0 
-                  ? 'bg-red-50 border-red-300' 
-                  : index === 1
-                  ? 'bg-orange-50 border-orange-300'
-                  : index === 2
-                  ? 'bg-yellow-50 border-yellow-300'
-                  : 'bg-blue-50 border-blue-200'
-              }`}
-            >
-              <div className="text-3xl mb-2">
-                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`}
+      {topHours.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">
+            🏆 Top 5 Horários de Maior Consumo
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {topHours.map((hour, index) => (
+              <div 
+                key={index}
+                className={`p-4 rounded-lg border-2 text-center transition-transform hover:scale-105 ${
+                  index === 0 
+                    ? 'bg-red-50 border-red-300' 
+                    : index === 1
+                    ? 'bg-orange-50 border-orange-300'
+                    : index === 2
+                    ? 'bg-yellow-50 border-yellow-300'
+                    : 'bg-blue-50 border-blue-200'
+                }`}
+              >
+                <div className="text-3xl mb-2">
+                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`}
+                </div>
+                <div className="text-2xl font-bold text-gray-900 mb-1">{hour.hour}</div>
+                <div className="text-lg font-semibold text-gray-700 mb-1">
+                  {hour.consumption} Wh
+                </div>
+                <div className="text-xs text-gray-500">
+                  Posição #{index + 1}
+                </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900 mb-1">{hour.hour}</div>
-              <div className="text-lg font-semibold text-gray-700 mb-1">
-                {hour.consumption} Wh
-              </div>
-              <div className="text-xs text-gray-500">
-                Posição #{index + 1}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Recomendações */}
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-6 border-2 border-blue-200">
         <div className="flex items-start space-x-4">
           <span className="text-4xl">💡</span>
